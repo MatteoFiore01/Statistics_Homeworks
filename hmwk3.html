@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url(https://images.unsplash.com/photo-1690207925012-0feb0b85ddf8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D);
+            background-size: cover;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #444;
+        }
+
+        .form-container input {
+            width: 80px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .canvas-container {
+            position: relative;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid black;
+        }
+
+        canvas {
+            background-color: #fff;
+            position: relative;
+        }
+
+        #x-axis-label {
+            margin-top: 10px;
+            font-size: 18px;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <label for="lambda">Lambda (λ):</label>
+        <input type="number" id="lambda" value="500" min="1">
+        
+        <label for="steps">Steps (N):</label>
+        <input type="number" id="steps" value="10000" min="1">
+        
+        <label for="m">Lines:</label>
+        <input type="number" id="m" value="500" min="1">
+
+        <label for="t">Cutoff Time (t):</label>
+        <input type="number" id="t" value="5000" min="1">
+        
+        <button onclick="startSimulation()">Start</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simulationCanvas3" width="1000" height="650"></canvas>
+        <canvas id="histogramCanvas3" width="300" height="650"></canvas>
+    </div>
+
+    <script>
+
+function startSimulation() {
+    let canvas3 = document.getElementById('simulationCanvas3');
+    let context3 = canvas3.getContext('2d');
+    let width3 = canvas3.width;
+    let height3 = canvas3.height;
+    let lambda3 = parseInt(document.getElementById('lambda').value); 
+    let N3 = parseInt(document.getElementById('steps').value); 
+    let m3 = parseInt(document.getElementById('m').value); 
+    let t3 = parseInt(document.getElementById('t').value);
+    let margin = 0; 
+    let final3 = new Array(m3).fill(0);
+    let final_t3 = new Array(m3).fill(0);
+    let maxJumps3 = 0;
+    
+    // Clear the canvas
+    context3.clearRect(0, 0, width3, height3);
+
+    // Reset maximum jumps
+
+    // Simulate and draw the lines
+    drawSimulation(m3, height3, width3, margin, lambda3, N3, t3, final3, final_t3, maxJumps3, context3);
+    
+    // Draw histogram in the center of the first canvas
+    drawHistogram(final_t3, 'simulationCanvas3', 'center', width3, margin, N3, t3, canvas3, context3, final3, final_t3);
+    
+    // Draw histogram also in the right side of the second canvas
+    drawHistogram(final3, 'histogramCanvas3', 'right', width3, margin, N3, t3, canvas3, context3, final3, final_t3);
+}
+
+
+function drawSimulation(m3, height3, width3, margin, lambda3, N3, t3, final3, final_t3, maxJumps3, context3) {
+    let jumpsArray = []; // Array to store jumps for each line
+
+    // Simulate multiple lines and record the number of jumps for each
+    for (let line = 0; line < m3; line++) {
+        const jumps = simulateLine(line, height3, margin, lambda3, N3, t3);
+        jumpsArray.push(jumps[0]);
+        final3[line] = jumps[0];
+        final_t3[line] = jumps[1];
+        maxJumps3 = Math.max(maxJumps3, jumps[0]); // Update the maximum jumps
+    }
+
+    // Adjust the vertical step size based on the maximum jumps
+    let stepSizeY3 = (height3 - 2 * margin) / maxJumps3;
+
+    // Now, draw each line again with the calculated step size
+    jumpsArray.forEach((jumps, lineIndex) => {
+        drawLine(jumps[0], lineIndex, margin, height3, width3, N3, context3, lambda3, stepSizeY3);
+    });
+
+    // Draw the axes
+    drawAxes(context3, height3, width3, margin);
+}
+
+function simulateLine(lineIndex, height3, margin, lambda3, N3, t3) {
+    let jumps = [0, 0];
+    let currentY = height3 - margin * 2; // Start at the bottom of the canvas
+
+    for (let i = 0; i <= N3; i++) {
+        if (Math.random() <= lambda3 / N3) {
+            jumps[0]++; // Increment jumps if the probability condition is met
+            if (i <= t3)
+                jumps[1]++;
+        }
+    }
+
+    return jumps;
+}
+
+function drawLine(jumps, lineIndex, margin, height3, width3, N3, context3, lambda3, stepSizeY3) {
+    let currentX = margin * 2; // Start with margin
+    let currentY = height3 - margin; // Start at correct height
+
+    stepSizeX3 = (width3 - 2 * margin) / N3; // Horizontal step
+
+    context3.beginPath();
+    context3.moveTo(currentX, currentY); // Start from (margin, margin)
+
+    for (let i = 0; i < N3; i++) {
+        currentX += stepSizeX3;
+        context3.lineTo(currentX, currentY);
+        if (Math.random() <= lambda3 / N3) {
+            currentY -= stepSizeY3; // Vertical jump
+            // Ensure currentY does not go below margin
+            if (currentY < margin) {
+                currentY = margin; // Cap at margin if it exceeds
+            }
+            context3.lineTo(currentX, currentY);
+        }
+    }
+
+    context3.strokeStyle = getRandomColor();
+    context3.lineWidth = 1;
+    context3.stroke();
+}
+
+function drawAxes(context3, height3, width3, margin) {
+    context3.strokeStyle = 'black';
+    context3.lineWidth = 2;
+
+    // X-axis
+    context3.beginPath();
+    context3.moveTo(margin * 2, height3 - margin * 2); // From bottom-left
+    context3.lineTo(width3 - margin * 2, height3 - margin * 2); // To bottom-right
+    context3.stroke();
+
+    // Y-axis
+    context3.beginPath();
+    context3.moveTo(margin * 2, margin * 2); // From top-left
+    context3.lineTo(margin * 2, height3 - margin * 2); // To bottom-left
+    context3.stroke();
+
+}
+
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
+
+function drawHistogram(data, targetCanvas, position = 'right', width3, margin, N3, t3, canvas3, context3, final3, final_t3) {
+    const histogramCanvas = document.getElementById(targetCanvas);
+    const hcv = document.getElementById('histogramCanvas3');
+    const context31 = histogramCanvas.getContext('2d');
+    
+    // Define dimensions and position of histogram
+    let histogramWidth3, xStart, yStart;
+    let stepSizeX3 = (width3 - 2 * margin) / N3;
+    if (position === 'center') {
+        histogramWidth3 = hcv.width;
+        xStart = stepSizeX3 * t3; // Center the graph
+        yStart = 0;
+    } else {
+        context31.clearRect(0, 0, histogramCanvas.width, histogramCanvas.height);
+        histogramWidth3 = hcv.width;
+        xStart = 0;
+        yStart = 0;
+    }
+    
+    const plotHeight = histogramCanvas.height; 
+    const yScale = plotHeight / (Math.max(...data) - Math.min(...data) + 1); 
+    const yMin = Math.min(...data);
+    const yMax = Math.max(...data);
+
+    // Calculate frequencies
+    const frequencies = {};
+    data.forEach(value => {
+        const bin = Math.round(value);
+        frequencies[bin] = (frequencies[bin] || 0) + 1;
+    });
+
+    // Find the maximum frequency to normalize bar length
+    const maxFrequency = Math.max(...Object.values(frequencies));
+
+    // Draw histogram
+    for (const bin in frequencies) {
+        const freq = frequencies[bin];
+        const y = yStart + plotHeight - ((bin - yMin) * yScale) - yScale / 2;
+        const barHeight = yScale - 2;
+        const barLength = (freq / maxFrequency) * (histogramWidth3 - 20); 
+
+        if (position == 'right') {
+            context31.fillStyle = 'purple';
+            context31.fillRect(xStart, y - barHeight / 2, barLength, barHeight);
+        }
+
+        context31.strokeStyle = 'black';
+        context31.strokeRect(xStart, y - barHeight / 2, barLength, barHeight);
+    }
+    context3.save();
+    context3.fillStyle = '#000'; 
+    context3.font = 'bold italic 15px Arial';
+    context3.textAlign = 'center';
+    if (position != 'right') {
+        const uniqueValues = Object.keys(frequencies).map(Number);
+        let { sum, count } = calculateMean(final_t3, 0);
+        let mean = sum / count; 
+        let variance = calculateVariance(uniqueValues, mean, 0); 
+        context3.fillText(`Mean at time ${t3}: ${mean.toFixed(2)}`, canvas3.width / 2 + 150, 30); // Media
+        context3.fillText(`Variance at time ${t3}: ${variance.toFixed(2)}`, canvas3.width / 2 + 150, 60);
+    }
+    else {
+        context31.save();
+        context31.fillStyle = '#000'; 
+        context31.font = 'bold italic 15px Arial';
+        context31.textAlign = 'center';
+        const uniqueValues = Object.keys(frequencies).map(Number);
+        let { sum, count } = calculateMean(final3, 0);
+        let mean = sum / count; 
+        let variance = calculateVariance(uniqueValues, mean, 0); 
+        context31.fillText(`Mean: ${mean.toFixed(2)}`, 150, 30); // Media
+        context31.fillText(`Variance: ${variance.toFixed(2)}`, 150, 60);
+        context31.restore();
+    }
+    context3.restore();
+}
+
+
+function calculateMean(values, index, sum = 0, count = 0) {
+    if (index >= values.length) {
+        return { sum, count };
+    }
+    return calculateMean(values, index + 1, sum + values[index], count + 1);
+}
+
+// Recursive function for variance
+function calculateVariance(values, mean, index, sumOfSquares = 0) {
+    if (index >= values.length) {
+        return sumOfSquares / values.length;
+    }
+    return calculateVariance(values, mean, index + 1, sumOfSquares + Math.pow(values[index] - mean, 2));
+}
+
+// Start with a default simulation
+startSimulation();
+
+    </script>
+</body>
+</html>
+

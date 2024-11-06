@@ -1,0 +1,307 @@
+<html lang="it">
+<head>
+    <meta charset="UTF-8"></meta>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"></meta>
+    <style>
+        canvas {
+            display: block;
+            max-width: none;
+            max-height: none;
+        }
+
+        body {
+            overflow-x: auto;
+        }
+
+        #canvasContainer {
+            width: 800px;
+            height: 1300px;
+            position: relative;
+            overflow: visible;
+            margin-top: 50px;
+        }
+
+        #histogramContainer {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #444;
+        }
+
+        .form-container input {
+            width: 80px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <label for="n">Number of Servers (n):</label>
+        <input id="n" min="1" type="number" value="50" /> <br />
+        <label for="m">Number of Attackers (m):</label>
+        <input id="m" min="1" type="number" value="25" /> <br />
+        <label for="p">Penetration probability (p):</label>
+        <input id="p" max="1" min="0" step="0.1" type="number" value="0.5" /> <br />
+        <label for="t">Relative frequency threshold (t):</label>
+        <input id="t" min="1" type="number" value="25" /> <br />
+        <button onclick="disegnaLinee()">Draw</button>
+    </div>
+    <div id="canvasContainer">
+        <canvas height="1300" id="canvas2" style="left: 0; position: absolute; top: 0;" width="800"></canvas>
+        <canvas height="1300" id="histogram" style="left: 0; position: absolute; top: 0;" width="1300"></canvas>
+        <canvas height="1300" id="relhistogram" style="left: 0; position: absolute; top: 0;" width="1300"></canvas>
+    </div>
+</body>
+    <script>
+function disegnaLinee() {
+    let n = parseInt(document.getElementById('n').value);
+    let m = parseInt(document.getElementById('m').value);
+    let p = parseFloat(document.getElementById('p').value);
+    let t = parseInt(document.getElementById('t').value);
+    let canvas = document.getElementById('canvas2');
+    let context = canvas.getContext('2d');
+    let step = canvas.height / (2*n);
+
+    let final = new Array(m).fill(0);
+    let success = new Array(m).fill(0);
+    let final_t = new Array(m).fill(0);
+    let success_t = new Array(m).fill(0);
+    
+    let centerX = 0;
+    let centerY = canvas.height / 2; 
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = 'black';
+    
+    context.beginPath();
+    context.moveTo(centerX, 0);
+    context.lineTo(centerX, canvas.height);
+
+    context.moveTo(0, centerY);
+    context.lineTo(canvas.width, centerY);
+    context.stroke();
+
+    for (let i = 0; i <= n; i++) {
+        let yLabelPos = centerY - (i * step); 
+        let yLabelNeg = centerY + (i * step); 
+
+        context.moveTo(centerX - 5, yLabelPos);
+        context.lineTo(centerX + 5, yLabelPos);
+        // Stylistic problem, after 100 servers stop drawing labels as axes become too crowded
+      	if (n<=100)
+        	context.fillText((i/n).toFixed(2), centerX + 15, yLabelPos + 5);
+
+        if (i !== 0) {
+            context.moveTo(centerX - 5, yLabelNeg);
+            context.lineTo(centerX + 5, yLabelNeg);
+          	if (n<=100)
+            	context.fillText((-i/n).toFixed(2), centerX + 15, yLabelNeg + 5);
+        }
+    }
+    context.stroke();
+  
+      for (let j = 0; j <= n; j++) {
+        let xLabel = centerX + j * step;
+        context.moveTo(xLabel, centerY - 5);
+        context.lineTo(xLabel, centerY + 5);
+        context.stroke();
+        if (n<=100)
+        	context.fillText(j, xLabel - 5, centerY + 20);
+    }
+
+    // Main loop to draw lines
+    for (let i = 0; i < m; i++) {
+        let yPosition = centerY;
+        context.beginPath();
+        context.moveTo(centerX, yPosition);
+        for (let j = 0; j <= n; j++) {
+            let x = centerX + j * step;
+			
+            // Probability management. If <=p (successful) go up, otherwise go down
+            if (Math.random() <= p) {
+                context.lineTo(x, yPosition);
+                yPosition -= step; 
+                final[i] += 1;
+                if (j<=t)
+                	final_t[i] += 1;
+            } else {
+                context.lineTo(x, yPosition);
+                yPosition += step; 
+                final[i] -= 1;
+                if (j<=t)
+                	final_t[i] -= 1;
+            }
+
+            context.lineTo(x, yPosition);
+        }
+
+        context.strokeStyle = getRandomColour();
+        context.stroke();
+    }
+
+    context.save();
+
+    drawHistogram(final, 'histogram');
+    drawHistogram(final_t, 'relhistogram');
+
+    context.restore();
+}
+    
+function drawHistogram(final, id) {
+    let m = parseInt(document.getElementById('m').value);
+    let n = parseInt(document.getElementById('n').value);
+    let t = parseInt(document.getElementById('t').value);
+    let p = parseFloat(document.getElementById('p').value);
+    let histogramCanvas = document.getElementById(id);
+    let mainCanvas = document.getElementById('canvas2');
+    let mainContext = mainCanvas.getContext('2d');
+    let histogramContext = histogramCanvas.getContext('2d'); 
+    histogramContext.clearRect(0, 0, histogramCanvas.width, histogramCanvas.height); 
+    let step = histogramCanvas.height / (4 * n);
+    let start = n * step;
+    let maxOffset = 1300; 
+    let offset = (0.5 - p) * maxOffset * 2; 
+    
+    if (id == 'relhistogram') {
+        start = t * step;
+        maxOffset = 4200; 
+        offset = (0.5 - p) * maxOffset * 4; 
+    }
+    histogramContext.save();
+    let maxLine = (mainCanvas.height/(2*n))* Math.max( ...final );
+    const barHeight = (histogramCanvas.height) / (2*n); 
+    histogramContext.translate(2 * start - 30, histogramCanvas.height / 2 - maxLine);
+    let maxLevel = Math.max(...final.map(Math.abs));
+
+    let frequency = {};
+    for (var i = -maxLevel; i <= maxLevel; i++) {
+        frequency[i] = 0;
+    }
+
+    final.forEach(function(level) {
+        if (frequency[level] !== undefined) {
+            frequency[level]++;
+        }
+    });
+
+    const totalValues = final.length;
+    const maxWidth = histogramCanvas.width * 0.5; 
+
+    const uniqueValues = Object.keys(frequency).map(Number);
+    const { sum, count } = calculateMean(final, 0);
+    const mean = sum / count; 
+
+    const variance = calculateVariance(uniqueValues, mean, 0); 
+
+    mainContext.save();
+
+    mainContext.fillStyle = '#000'; 
+    mainContext.font = 'bold italic 15px Arial';
+    mainContext.textAlign = 'center';
+
+    // Prints mean and variance
+    if (id == 'relhistogram') {
+        mainContext.fillText(`Mean at time t=${t}: ${mean.toFixed(2)}`, mainCanvas.width / 2 - 50, 30);
+        mainContext.fillText(`Variance at time t=${t}: ${variance.toFixed(2)}`, mainCanvas.width / 2 - 50, 60);
+    }
+    else {
+        mainContext.fillText(`Mean: ${mean.toFixed(2)}`, mainCanvas.width / 2 + 150, 30); // Media
+        mainContext.fillText(`Variance: ${variance.toFixed(2)}`, mainCanvas.width / 2 + 150, 60);
+    }
+
+    mainContext.restore();
+
+    // Drawing bars
+    uniqueValues.forEach((value, index) => {
+        const freq = frequency[value];
+        const normalizedFrequency = (freq / totalValues) * maxWidth;
+        if (freq > 0) {
+            const gradient = histogramContext.createLinearGradient(0, index * barHeight, normalizedFrequency, index * barHeight);
+
+            if (id == 'relhistogram') {
+                gradient.addColorStop(0, '#02AABD'); 
+                gradient.addColorStop(1, '#00CDAC');    
+            }
+            else {
+                gradient.addColorStop(0, '#C6EA8D'); 
+                gradient.addColorStop(1, '#FE90AF'); 
+            }
+            
+            histogramContext.fillStyle = gradient;
+            histogramContext.fillRect(30, index * barHeight, normalizedFrequency, barHeight - 1);
+
+            histogramContext.fillStyle = '#000';
+            histogramContext.font = '10px Arial';
+            histogramContext.textAlign = 'center';
+            histogramContext.fillText(value + ' : ' + freq, 30 + normalizedFrequency / 2, index * barHeight + barHeight - 3);
+        }
+    });
+
+    histogramContext.restore();
+}
+
+// Recursive function for mean
+function calculateMean(values, index, sum = 0, count = 0) {
+    if (index >= values.length) {
+        return { sum, count };
+    }
+    return calculateMean(values, index + 1, sum + values[index], count + 1);
+}
+
+// Recursive function for variance
+function calculateVariance(values, mean, index, sumOfSquares = 0) {
+    if (index >= values.length) {
+        return sumOfSquares / values.length;
+    }
+    return calculateVariance(values, mean, index + 1, sumOfSquares + Math.pow(values[index] - mean, 2));
+}
+
+// Aux function
+function getRandomColour() {
+    return `rgb(${rand(256)}, ${rand(256)}, ${rand(256)})`;
+}
+
+function rand(max) {
+    return Math.floor(Math.random() * max);
+}
+
+window.onload = () => {
+    disegnaLinee();
+};
+
+disegnaLinee();
+  	</script>
+</html>

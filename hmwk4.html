@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: url(https://images.unsplash.com/photo-1690207925026-d774e9571791?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D);
+            background-size: cover;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #444;
+        }
+
+        .form-container input {
+            width: 80px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .canvas-container {
+            position: relative;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid black;
+        }
+
+        canvas {
+            background-color: #fff;
+            position: relative;
+        }
+
+        #x-axis-label {
+            margin-top: 10px;
+            font-size: 18px;
+            color: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <label for="p">Probability (p):</label>
+        <input type="number" id="p" value="0.5" max="1" step="0.1">
+        
+        <label for="steps">Steps (n):</label>
+        <input type="number" id="steps" value="10000" min="1">
+        
+        <label for="m">Lines:</label>
+        <input type="number" id="m" value="200" min="1">
+
+        <label for="t">Cutoff Time (t):</label>
+        <input type="number" id="t" value="5000" min="1">
+        
+        <button onclick="simulation.startSimulation()">Start</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simulationCanvas4" width="1000" height="650"></canvas>
+        <canvas id="histogramCanvas4" width="300" height="650"></canvas>
+    </div>
+
+    <script>
+        class Simulation {
+    constructor() {
+        this.canvas = document.getElementById('simulationCanvas4');
+        this.context = this.canvas.getContext('2d');
+        this.histogramCanvas = document.getElementById('histogramCanvas4');
+        this.histogramContext = this.histogramCanvas.getContext('2d');
+        this.width = this.canvas.width;
+
+        this.p = 0;
+        this.n = 0;
+        this.m = 0;
+        this.t = 0;
+        this.stepSizeX = 0;
+        this.final = [];
+        this.final_t = [];
+        this.maxJumps = 0;
+        this.minJumps = 0;
+        this.margin = 0;
+    }
+
+    startSimulation() {
+        this.p = parseFloat(document.getElementById('p').value);
+        this.n = parseInt(document.getElementById('steps').value);
+        this.m = parseInt(document.getElementById('m').value);
+        this.t = parseInt(document.getElementById('t').value);
+        this.final = new Array(this.m).fill(0);
+        this.final_t = new Array(this.m).fill(0);
+
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.histogramContext.clearRect(0, 0, this.histogramCanvas.width, this.histogramCanvas.height);
+
+        this.maxJumps = 0;
+        this.minJumps = 0;
+
+        const jumpsArray = this.simulateAllLines();
+
+        const totalHeight = Math.abs(this.maxJumps) + Math.abs(this.minJumps);
+        const canvasHeight = Math.min(totalHeight * 20, 800);
+
+        this.canvas.height = canvasHeight;
+        this.histogramCanvas.height = canvasHeight;
+
+        if (this.p > 0.5)
+            this.context.translate(0, 400);
+        if (this.p < 0.5)
+            this.context.translate(0, -400);
+
+        this.drawSimulation(jumpsArray);
+        this.drawHistogram(this.final_t, 'simulationCanvas4', 'center');
+        this.drawHistogram(this.final, 'histogramCanvas4', 'right');
+    }
+
+    simulateAllLines() {
+        let jumpsArray = [];
+
+        for (let line = 0; line < this.m; line++) {
+            const jumps = this.simulateLine();
+            jumpsArray.push(jumps[0]);
+            this.final[line] = jumps[0];
+            this.final_t[line] = jumps[1];
+            this.maxJumps = Math.max(this.maxJumps, jumps[0]);
+            this.minJumps = Math.min(this.minJumps, jumps[0]);
+        }
+
+        return jumpsArray;
+    }
+
+    simulateLine() {
+        let jumps = [0, 0];
+
+        for (let i = 0; i <= this.n; i++) {
+            if (Math.random() <= this.p) {
+                jumps[0]++;
+                if (i <= this.t)
+                    jumps[1]++;
+            } else {
+                jumps[0]--;
+            }
+        }
+
+        return jumps;
+    }
+
+    drawSimulation(jumpsArray) {
+        let stepSizeY = (1 / Math.sqrt(this.n)) * 10;
+        if (this.p == 0.5)
+            stepSizeY *= 2;
+
+        this.stepSizeX = (this.width - 2 * this.margin) / this.n;
+        let yAxisPosition = this.canvas.height / 2;
+
+        jumpsArray.forEach((jumps, lineIndex) => {
+            this.drawLine(jumps, lineIndex, stepSizeY, yAxisPosition);
+        });
+
+        this.drawAxes(yAxisPosition);
+    }
+
+    drawLine(jumps, lineIndex, stepSizeY, yAxisPosition) {
+        let currentX = this.margin * 2;
+        let currentY = yAxisPosition;
+
+        this.context.beginPath();
+        this.context.moveTo(currentX, currentY);
+
+        for (let i = 0; i < this.n; i++) {
+            currentX += this.stepSizeX;
+            currentY += Math.random() <= this.p ? -stepSizeY : stepSizeY;
+            this.context.lineTo(currentX, currentY);
+        }
+
+        this.context.strokeStyle = this.getRandomColor();
+        this.context.lineWidth = 0.3;
+        this.context.stroke();
+    }
+
+    drawAxes(yAxisPosition) {
+        this.context.strokeStyle = 'black';
+        this.context.lineWidth = 2;
+
+        this.context.beginPath();
+        this.context.moveTo(this.margin * 2, yAxisPosition);
+        this.context.lineTo(this.width - this.margin * 2, yAxisPosition);
+        this.context.stroke();
+
+        this.context.beginPath();
+        this.context.moveTo(this.margin * 2, yAxisPosition);
+        if (this.p > 0.5) {
+            this.context.lineTo(this.margin * 2, this.margin);
+        } else if (this.p < 0.5) {
+            this.context.lineTo(this.margin * 2, this.canvas.height - this.margin);
+        }
+        this.context.stroke();
+    }
+
+    drawHistogram(data, targetCanvas, position = 'right') {
+        const histogramCanvas = document.getElementById(targetCanvas);
+        const context = histogramCanvas.getContext('2d');
+        
+        let histogramWidth, xStart, yStart;
+        let stepSizeX = (histogramCanvas.width - 2 * this.margin) / this.n;
+        if (position === 'center') {
+            histogramWidth = 300;
+            xStart = stepSizeX * this.t;
+            yStart = 0;
+        } else {
+            context.clearRect(0, 0, histogramCanvas.width, histogramCanvas.height);
+            histogramWidth = histogramCanvas.width;
+            xStart = 0;
+            yStart = 0;
+        }
+        
+        const plotHeight = histogramCanvas.height;
+        const yScale = plotHeight / (Math.max(...data) - Math.min(...data) + 1);
+        const yMin = Math.min(...data);
+        const yMax = Math.max(...data);
+
+        const frequencies = {};
+        data.forEach(value => {
+            const bin = Math.round(value);
+            frequencies[bin] = (frequencies[bin] || 0) + 1;
+        });
+
+        const maxFrequency = Math.max(...Object.values(frequencies));
+
+        for (const bin in frequencies) {
+            const freq = frequencies[bin];
+            const y = yStart + plotHeight - ((bin - yMin) * yScale) - yScale / 2;
+            const barHeight = yScale - 2;
+            const barLength = (freq / maxFrequency) * (histogramWidth - 20);
+
+            context.strokeStyle = 'black';
+            context.lineWidth = 0.3;
+            context.strokeRect(xStart, y - barHeight / 2, barLength, barHeight);
+        }
+        
+        context.save();
+        context.fillStyle = '#000'; 
+        context.font = 'bold italic 15px Arial';
+        context.textAlign = 'center';
+        const uniqueValues = Object.keys(frequencies).map(Number);
+        if (position != 'right') {
+            let { sum, count } = this.calculateMean(this.final, 0);
+            let mean = sum / count; 
+            let variance = this.calculateVariance(uniqueValues, mean, 0); 
+            context.fillText(`Mean at time ${this.t}: ${mean.toFixed(2)}`, this.canvas.width / 2 - 150 , 30); 
+            context.fillText(`Variance at time ${this.t}: ${variance.toFixed(2)}`, this.canvas.width / 2 - 150, 60);
+        }
+        let { sum, count } = this.calculateMean(this.final_t, 0);
+        let mean = sum / count; 
+        let variance = this.calculateVariance(uniqueValues, mean, 0); 
+        context.fillText(`Mean: ${mean.toFixed(2)}`, this.canvas.width / 2 + 150 , 30); 
+        context.fillText(`Variance: ${variance.toFixed(2)}`, this.canvas.width / 2 + 150, 60);
+        context.restore();
+    }
+
+    calculateMean(values, index, sum = 0, count = 0) {
+        if (index >= values.length) {
+            return { sum, count };
+        }
+        return this.calculateMean(values, index + 1, sum + values[index], count + 1);
+    }
+
+    calculateVariance(values, mean, index, sumOfSquares = 0) {
+        if (index >= values.length) {
+            return sumOfSquares / values.length;
+        }
+        return this.calculateVariance(values, mean, index + 1, sumOfSquares + Math.pow(values[index] - mean, 2));
+    }
+
+    getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+}
+const simulation = new Simulation();
+
+window.onload = () => {
+    const simulation = new Simulation();
+    simulation.startSimulation();
+};
+
+    </script>
+</body>
+</html>

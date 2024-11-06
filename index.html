@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homework Loader Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet">
+    <style>
+        /* Styling */
+        body {
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background: url('https://media.giphy.com/media/10ppffwhOftLy0/giphy.gif?cid=ecf05e47p42ep4utrys4qqum21jb725rzofnrmigb6pvee8c&ep=v1_gifs_related&rid=giphy.gif&ct=g') no-repeat center center fixed;
+            background-size: cover;
+            color: #333;
+            transition: background 1s ease-in-out;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            cursor: pointer;
+            border: 2px solid #000;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.2s ease;
+        }
+
+        .radio-group label:nth-child(1) { color: lightblue; }
+        .radio-group label:nth-child(2) { color: lightcoral; }
+        .radio-group label:nth-child(3) { color: lightgoldenrodyellow; }
+        .radio-group label:nth-child(4) { color: lightgray; }
+        .radio-group label:nth-child(5) { color: lightgreen; }
+        .radio-group label:nth-child(6) { color: lightseagreen; }
+        .radio-group label:nth-child(7) { color: palevioletred; }
+        .radio-group label:nth-child(8) { color: powderblue; }
+        .radio-group label:nth-child(9) { color: olivedrab; }
+        .radio-group label:nth-child(10) { color: brown; }
+
+        /* Standard radio button */
+        .radio-group input[type="radio"] {
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        /* Testo con bordo nero */
+        .bordered-text {
+            font-weight: bold;
+            text-shadow: 
+                -1px -1px 0 #000,
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000;
+        }
+
+        #content-display {
+            width: 100%;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: rgba(240, 240, 240, 0.9);
+            border-radius: 8px;
+            box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.2);
+            display: none;
+            opacity: 0; 
+            transition: opacity 0.5s ease-in-out; 
+        }
+
+        .shrink-container {
+            transform: scale(0.85); 
+            opacity: 0.8;
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SDE Homework Loader</h1>
+        <div class="radio-group">
+            <label><input type="radio" name="homework" value="hmwk1.html" onchange="loadSelectedPage()"><span class="bordered-text">Simple Euler–Maruyama simulator</span></label>
+            <label><input type="radio" name="homework" value="hmwk2.html" onchange="loadSelectedPage()"><span class="bordered-text">Refined Euler–Maruyama for SDE</span></label>
+            <label><input type="radio" name="homework" value="hmwk3.html" onchange="loadSelectedPage()"><span class="bordered-text">SDE Continuous Process</span></label>
+            <label><input type="radio" name="homework" value="hmwk4.html" onchange="loadSelectedPage()"><span class="bordered-text">SDE with Time Continuity</span></label>
+        </div>
+    </div>
+
+    <div id="content-display">
+        <iframe id="content-frame" style="width: 100%; height: 600px; border: none;"></iframe>
+    </div>
+
+    <script>
+        let loadedScripts = [];
+        loadedScripts.forEach((script) => script.remove());
+        
+        const vectorImages = [
+            'https://img.freepik.com/free-vector/gradient-blur-pink-blue-abstract-background_53876-117324.jpg?t=st=1730469791~exp=1730473391~hmac=320fbb721231f44a79c6d53a444b376d5921aa30b8fc47803038d98a5e6a85b9&w=996',
+            'https://img.freepik.com/free-vector/blue-pink-gradient-blur-background_53876-119324.jpg?t=st=1730469818~exp=1730473418~hmac=da6a4462f9ca6171568e7f8ac44159c72698c973139b9486e8abc255e256bdb0&w=996',
+            'https://img.freepik.com/free-vector/aesthetic-pastel-gradient-abstract-background-vector_53876-126257.jpg?t=st=1730469843~exp=1730473443~hmac=e019f36790656829d828647ad956de75f0e72b5eec478d0fd869f0a7fbeb1503&w=996',
+            'https://img.freepik.com/premium-photo/specular-spectrums-abstract-background_608068-2511.jpg?w=1060',
+            'https://img.freepik.com/free-vector/green-blue-gradient-blur-background_53876-105432.jpg?t=st=1730469890~exp=1730473490~hmac=883639961133dafdc85e2a7ab89ae6feebb71c913f991a7b57de9b4cec7d14f6&w=996',
+            'https://img.freepik.com/free-photo/vivid-blurred-colorful-wallpaper-background_58702-3183.jpg?t=st=1730469933~exp=1730473533~hmac=aa1495fb041bbeb520dc4ab6f372836233794ea49dc989916e9de5804f9145ce&w=996'
+        ];
+
+        function loadSelectedPage() {
+            const selectedHomework = document.querySelector('input[name="homework"]:checked');
+            const contentFrame = document.getElementById('content-frame');
+            const container = document.querySelector('.container');
+
+            if (selectedHomework) {
+                if (!container.classList.contains('shrink-container')) {
+                    container.classList.add('shrink-container');
+                }
+
+                // Carica la pagina selezionata nell'iframe
+                contentFrame.src = selectedHomework.value;
+                
+                // Rendi visibile l'iframe
+                const contentDisplay = document.getElementById('content-display');
+                contentDisplay.style.display = 'block';
+                contentDisplay.style.opacity = 1;
+                
+                setTimeout(() => {
+                    contentDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
+        }
+
+
+    </script>
+</body>
+</html>

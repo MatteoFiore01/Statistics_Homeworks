@@ -1,0 +1,185 @@
+<html lang="it">
+  <head>
+    <style>
+        .container {
+            display: flex;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        #histogram {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding-left: 20px;
+            height: 650px; /* Altezza fissa dell'istogramma uguale al canvas */
+        }
+        .bar {
+            background-color: orange;
+            border: 1px solid black;
+            margin: 2px 0;
+            padding:3px;
+            display: flex;
+            align-items: center;
+        }
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container label {
+            font-weight: bold;
+            margin-right: 10px;
+            color: #444;
+        }
+
+        .form-container input {
+            width: 80px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 15px;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+        .container {
+            position: relative;
+            justify-content: end;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid black;
+        }
+
+        canvas {
+            background-color: #fff;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <label for="n">Number of Servers (n):</label>
+        <input id="n" min="1" type="number" value="10" />
+        <label for="m">Number of Attackers (m):</label>
+        <input id="m" min="1" type="number" value="5" />
+        <label for="p">Penetration probability (p):</label>
+        <input id="p" max="1" min="0" step="0.1" type="number" value="0.5" />
+        <button onclick="disegnaLinee()">Disegna</button>
+    </div>
+    <div class="container">
+        <canvas height="650" id="canvas1" width="650"></canvas>
+        <div id="histogram"> </div>
+    </div>
+
+    <script>
+    function disegnaLinee() {
+        let m = parseInt(document.getElementById('m').value);
+        let p = parseFloat(document.getElementById('p').value);
+        let n = parseInt(document.getElementById('n').value);
+        let canvas = document.getElementById('canvas1');
+        let context = canvas.getContext('2d');
+        let step = canvas.width / n;
+        let final = new Array(n).fill(0);
+
+        // Disegna gli assi
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.strokeStyle = 'black';
+        context.beginPath();
+        context.moveTo(0, canvas.height);
+        context.lineTo(canvas.width, canvas.height);
+        context.moveTo(0, 0);
+        context.lineTo(0, canvas.height);
+
+        // Etichette sugli assi
+        for (let i = 0; i <= n; i++) {
+            let xLabel = i * step;
+            let yLabel = canvas.height - (i * step);
+
+            context.moveTo(xLabel, canvas.height);
+            context.lineTo(xLabel, canvas.height - 5);
+            context.fillText(i, xLabel - 5, canvas.height - 10);
+
+            context.moveTo(0, yLabel);
+            context.lineTo(5, yLabel);
+            context.fillText(i, 10, yLabel + 5);
+        }
+        context.stroke();
+
+        // Disegna le m linee
+        for (let i = 0; i < m; i++) {
+            let yPosition = canvas.height;
+            context.beginPath();
+            context.moveTo(0, yPosition);
+            for (let j = 0; j <= n; j++) {
+                let x = j * step;
+                if (Math.random() <= p) {
+                    context.lineTo(x, yPosition);
+                    yPosition -= step;
+                }
+                context.lineTo(x, yPosition);
+                if (j == n) {
+                    let index = Math.min(n, Math.floor((canvas.height - yPosition) / step));
+                    final[index] += 1;
+                }
+            }
+            context.strokeStyle = getRandomColour();
+            context.stroke();
+        }
+
+        // Aggiorna l'istogramma
+        const histogramDiv = document.getElementById('histogram');
+        histogramDiv.innerHTML = "";
+
+        // Calcola l'altezza proporzionale di ogni barra
+        let barHeight = 650 / final.length;  // Altezza massima di 650px divisa per il numero di barre
+
+        final.forEach((value, index) => {
+            const bar = document.createElement('div');
+            bar.classList.add('bar');
+            bar.style.height = `${barHeight - 10}px`;  // Imposta l'altezza proporzionale della barra
+            if (value > 0) bar.style.width = `${value * 30}px`;  // Larghezza della barra in base al valore;
+            else if (value <= 0 || isNaN(value)) bar.style.width = `1px`; 
+            histogramDiv.appendChild(bar);
+        });
+    }
+
+    function getRandomColour() {
+        return `rgb(${rand(256)}, ${rand(256)}, ${rand(256)})`;
+    }
+
+    function rand(max) {
+        return Math.floor(Math.random() * max);
+    }
+
+    window.onload = () => {
+        disegnaLinee();
+    };
+
+    disegnaLinee();
+    </script>
+</body>
+</html>
