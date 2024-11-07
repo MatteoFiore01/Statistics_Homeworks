@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px; 
+        }
+        h1 {
+            color: #4a90e2;
+            font-size: 2.5em; 
+            margin-bottom: 20px;
+        }
+        .input-field {
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 80%;
+        }
+        button {
+            background-color: #4a90e2;
+            color: white;
+            font-size: 16px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: none;  /* Nascondi il bottone inizialmente */
+        }
+        button:hover {
+            background-color: #357ab7;
+        }
+        button:active {
+            background-color: #29598b;
+        }
+        #histogramCanvas, #freqCanvas {
+            border: 2px solid #4a90e2;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #sumMessage {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        #sumMessage.green {
+            color: green;
+        }
+        #sumMessage.red {
+            color: red;
+        }
+        #meanVar {
+            color: purple;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .probability-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        .probability-grid input {
+            width: 100%;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <div class="container">
+            <h1>Interval Simulator</h1>
+
+                <label for="numIntervals">Number of intervals:</label> <br>
+                <input type="number" id="numIntervals" value="3" min="1" step="1" class="input-field" onchange="updateProbabilityFields()">
+                <br>
+                <label for="numGenerations">Number of variables:</label>
+                <input type="number" id="numGenerations" value="100" min="1" step="1" class="input-field">
+
+                <br>
+
+                <label for="probabilities">Interval probability:</label>
+                <div class="probability-grid" id="probabilityGrid"></div>
+
+                <div id="sumMessage"></div>
+
+            <div class="container">
+                <button onclick="drawHistogram()">Draw Histograms</button>
+            </div>
+
+            <div id="meanVar"></div>
+
+            <div class="container">
+                <h2>Values Histogram</h2>
+                <canvas id="histogramCanvas" width="700" height="400"></canvas>
+                <h2>Frequency Histogram</h2>
+                <canvas id="freqCanvas" width="700" height="400"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let barHeights = [];
+
+        function updateProbabilityFields() {
+            const numIntervals = document.getElementById('numIntervals').value;
+            const probabilityGrid = document.getElementById('probabilityGrid');
+            probabilityGrid.innerHTML = ''; 
+            let totalProb = 0;
+            for (let i = 0; i < numIntervals; i++) {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `p${i}`;
+                input.value = (Math.random() * 0.3).toFixed(2); 
+                input.step = '0.01';
+                input.max = '1';
+                input.classList.add('input-field');
+                input.addEventListener('input', updateSumMessage);
+                probabilityGrid.appendChild(input);
+                totalProb += parseFloat(input.value);
+            }
+
+            normalizeProbabilities(totalProb);
+        }
+
+        function normalizeProbabilities(totalProb) {
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+            const scaleFactor = 1 / totalProb;
+
+            inputs.forEach(input => {
+                let value = parseFloat(input.value);
+                input.value = (value * scaleFactor).toFixed(2);
+            });
+
+            updateSumMessage();
+        }
+
+        function updateSumMessage() {
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+            const probabilities = Array.from(inputs).map(input => parseFloat(input.value) || 0);
+
+            const sum = probabilities.reduce((acc, val) => acc + val, 0);
+            const sumMessage = document.getElementById('sumMessage');
+            const drawButton = document.querySelector('button');  // Prendi il bottone "Draw Histograms"
+
+            if (Math.abs(sum - 1) < 0.01) {
+                sumMessage.classList.add('green');
+                sumMessage.classList.remove('red');
+                sumMessage.textContent = `Probability sum is correct!`;
+                drawButton.style.display = 'inline-block'; // Mostra il bottone
+            } else {
+                sumMessage.classList.add('red');
+                sumMessage.classList.remove('green');
+                sumMessage.textContent = `Probability sum is wrong, it's: ${sum.toFixed(2)} (should be 1)`;
+                drawButton.style.display = 'none'; // Nascondi il bottone
+            }
+        }
+
+
+
+        function calculateHeights() {
+            const numIntervals = document.getElementById('numIntervals').value;
+            const numGenerations = document.getElementById('numGenerations').value;
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+
+            const probabilities = Array.from(inputs).map(input => parseFloat(input.value) || 0);
+
+            barHeights = new Array(numGenerations).fill(0);
+
+            let cumulativeProbabilities = [0];
+            probabilities.forEach((p, index) => {
+                cumulativeProbabilities.push(cumulativeProbabilities[index] + p);
+            });
+
+            for (let i = 0; i < numGenerations; i++) {
+                const randomValue = Math.random();
+                for (let j = 0; j < numIntervals; j++) {
+                    if (randomValue >= cumulativeProbabilities[j] && randomValue < cumulativeProbabilities[j + 1]) {
+                        barHeights[i] = j;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function drawHistogram() {
+            calculateHeights();
+
+            const canvas = document.getElementById('histogramCanvas');
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = canvas.width / barHeights.length;
+            const maxVal = Math.max(...barHeights);
+            const scale = (canvas.height - 20) / maxVal;
+
+            barHeights.forEach(index => {
+                if (barHeights[index] == NaN)
+                  alert('Error');
+            });
+
+            barHeights.forEach((height, index) => {
+                const barHeight = height * scale;
+                const x = index * barWidth;
+                const y = canvas.height - barHeight;
+
+                context.fillStyle = '#4a90e2';
+                context.fillRect(x, y, barWidth - 2, barHeight);
+                context.fillStyle = '#333';
+                context.fillText(height, x + barWidth / 4, y - 5);
+            });
+
+            let { sum, count } = calculateMean(barHeights, 0);
+            let mean = sum / count; 
+            let variance = calculateVariance(barHeights, mean, 0);
+            
+            console.log(mean);
+            console.log(variance);
+
+            const meanVar = document.getElementById('meanVar');
+            meanVar.textContent = `Mean: ${mean.toFixed(2)} || Variance: ${variance.toFixed(2)}`;
+
+            const freqCanvas = document.getElementById('freqCanvas');
+            const freqContext = freqCanvas.getContext('2d');
+            freqContext.clearRect(0, 0, freqCanvas.width, freqCanvas.height);
+
+            const freqCounts = new Array(barHeights.length).fill(0);
+            barHeights.forEach(height => freqCounts[height]++);
+
+            const freqBarWidth = freqCanvas.width / freqCounts.length;
+            const maxFreq = Math.max(...freqCounts);
+            const freqScale = (freqCanvas.height - 20) / maxFreq;
+
+            freqCounts.forEach((count, index) => {
+                const barHeight = count * freqScale;
+                const x = index * freqBarWidth;
+                const y = freqCanvas.height - barHeight;
+
+                freqContext.fillStyle = '#ff7f0e';
+                freqContext.fillRect(x, y, freqBarWidth - 2, barHeight);
+                freqContext.fillStyle = '#333';
+                freqContext.fillText(count, x + freqBarWidth / 4, y - 5);
+            });
+        }
+
+        function calculateMean(values, index, sum = 0, count = 0) {
+            if (index >= values.length) {
+                return { sum, count };
+            }
+            return this.calculateMean(values, index + 1, sum + values[index], count + 1);
+        }
+
+        function calculateVariance(values, mean, index, sumOfSquares = 0) {
+            if (index >= values.length) {
+                return sumOfSquares / values.length;
+            }
+            return this.calculateVariance(values, mean, index + 1, sumOfSquares + Math.pow(values[index] - mean, 2));
+        }
+
+        updateProbabilityFields();
+    </script>
+</body>
+</html>
