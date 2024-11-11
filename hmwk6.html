@@ -6,7 +6,7 @@
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #f4f7fc;
+            background: linear-gradient(45deg, #93f8ff, #ff9a8b); /* Gradiente a 45 gradi con colori più neutri */
             margin: 0;
             padding: 0;
             color: #333;
@@ -17,19 +17,20 @@
             text-align: center;
         }
         .container {
+            margin-top: 20px;
             margin-bottom: 20px;
             padding: 15px;
             border-radius: 8px;
             background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 900px; 
+            max-width: 1500px;
         }
+
         h1 {
             color: #4a90e2;
-            font-size: 2.5em; 
+            font-size: 2.5em;
             margin-bottom: 20px;
         }
+
         .input-field {
             margin: 10px 0;
             padding: 8px;
@@ -38,6 +39,7 @@
             font-size: 16px;
             width: 80%;
         }
+
         button {
             background-color: #4a90e2;
             color: white;
@@ -47,47 +49,68 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            display: none;  /* Nascondi il bottone inizialmente */
+            display: none; /* Nascondi il bottone inizialmente */
         }
+
         button:hover {
             background-color: #357ab7;
         }
+
         button:active {
             background-color: #29598b;
         }
+
         #histogramCanvas, #freqCanvas {
             border: 2px solid #4a90e2;
             border-radius: 8px;
-            margin-top: 20px;
             display: block;
             margin-left: auto;
             margin-right: auto;
         }
+
         #sumMessage {
             font-size: 18px;
             font-weight: bold;
             margin-top: 20px;
         }
+
         #sumMessage.green {
             color: green;
         }
+
         #sumMessage.red {
             color: red;
         }
+
         #meanVar {
             color: purple;
             font-size: 18px;
             font-weight: bold;
             margin-top: 20px;
         }
+
         .probability-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 15px;
+            gap: 20px;
         }
+
         .probability-grid input {
-            width: 100%;
+            width: 50%;
         }
+
+        .histogram-row {
+            display: flex;
+            justify-content: center;
+        }
+
+        .histogram-row canvas {
+            border: 2px solid #4a90e2;
+            border-radius: 8px;
+            width: 400px;
+            height: 400px;
+        }
+
         .main-content {
             display: flex;
             flex-direction: column;
@@ -95,6 +118,7 @@
             align-items: center;
             text-align: center;
         }
+
     </style>
 </head>
 <body>
@@ -121,13 +145,15 @@
 
             <div id="meanVar"></div>
 
+            <h2>Frequency Histogram & Theoretical Distribution</h2>
+            <div class="histogram-row">
+                <canvas id="freqCanvas" width="400" height="400"></canvas>
+                <canvas id="theoreticalCanvas" width="400" height="400"></canvas>
+            </div>    
             <div class="container">
                 <h2>Values Histogram</h2>
                 <canvas id="histogramCanvas" width="700" height="400"></canvas>
-                <h2>Frequency Histogram</h2>
-                <canvas id="freqCanvas" width="700" height="400"></canvas>
-            </div>
-
+            </div>    
         </div>
     </div>
 
@@ -226,11 +252,6 @@
             const maxVal = Math.max(...barHeights);
             const scale = (canvas.height - 20) / maxVal;
 
-            barHeights.forEach(index => {
-                if (barHeights[index] == NaN)
-                  alert('Error');
-            });
-
             barHeights.forEach((height, index) => {
                 const barHeight = height * scale;
                 const x = index * barWidth;
@@ -242,22 +263,18 @@
                 context.fillText(height, x + barWidth / 4, y - 5);
             });
 
-            let { sum, count } = calculateMean(barHeights, 0);
-            let mean = sum / count; 
-            let variance = calculateVariance(barHeights, mean, 0);
-            
-            console.log(mean);
-            console.log(variance);
+            const numIntervals = parseInt(document.getElementById('numIntervals').value);  // Assicura che numIntervals sia un numero intero
+            const freqCounts = new Array(numIntervals).fill(0); // Lunghezza pari al numero di intervalli
 
-            const meanVar = document.getElementById('meanVar');
-            meanVar.textContent = `Mean: ${mean.toFixed(2)} || Variance: ${variance.toFixed(2)}`;
+            barHeights.forEach(height => {
+                if (height < numIntervals) {
+                    freqCounts[height]++;
+                }
+            });
 
             const freqCanvas = document.getElementById('freqCanvas');
             const freqContext = freqCanvas.getContext('2d');
             freqContext.clearRect(0, 0, freqCanvas.width, freqCanvas.height);
-
-            const freqCounts = new Array(barHeights.length).fill(0);
-            barHeights.forEach(height => freqCounts[height]++);
 
             const freqBarWidth = freqCanvas.width / freqCounts.length;
             const maxFreq = Math.max(...freqCounts);
@@ -273,7 +290,37 @@
                 freqContext.fillStyle = '#333';
                 freqContext.fillText(count, x + freqBarWidth / 4, y - 5);
             });
+
+            drawTheoreticalDistribution();
         }
+
+        function drawTheoreticalDistribution() {
+            const theoreticalCanvas = document.getElementById('theoreticalCanvas');
+            const theoreticalContext = theoreticalCanvas.getContext('2d');
+            theoreticalContext.clearRect(0, 0, theoreticalCanvas.width, theoreticalCanvas.height);
+
+            const numIntervals = parseInt(document.getElementById('numIntervals').value);  
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+
+            // Ottieni le probabilità dai campi di input
+            const probabilities = Array.from(inputs).map(input => parseFloat(input.value) || 0);
+
+            const barWidth = theoreticalCanvas.width / probabilities.length;
+            const maxProb = Math.max(...probabilities);
+            const scale = (theoreticalCanvas.height - 20) / maxProb;
+
+            probabilities.forEach((prob, index) => {
+                const barHeight = prob * scale;
+                const x = index * barWidth;
+                const y = theoreticalCanvas.height - barHeight;
+
+                theoreticalContext.fillStyle = '#66c2a5';
+                theoreticalContext.fillRect(x, y, barWidth - 2, barHeight);
+                theoreticalContext.fillStyle = '#333';
+                theoreticalContext.fillText(prob.toFixed(2), x + barWidth / 4, y - 5);
+            });
+        }
+
 
         function calculateMean(values, index, sum = 0, count = 0) {
             if (index >= values.length) {
