@@ -291,6 +291,16 @@
                 freqContext.fillText(count, x + freqBarWidth / 4, y - 5);
             });
 
+            let { sum, count } = calculateMean(barHeights, 0);
+            let mean = sum / count; 
+            let variance = calculateVariance(barHeights, mean, 0);
+            
+            console.log(mean);
+            console.log(variance);
+
+            const meanVar = document.getElementById('meanVar');
+            meanVar.textContent = `Mean: ${mean.toFixed(2)} || Variance: ${variance.toFixed(2)}`
+
             drawTheoreticalDistribution();
         }
 
