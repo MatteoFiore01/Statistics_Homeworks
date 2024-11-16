@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #93f8ff, #ff9a8b);
+            margin: 0;
+            padding: 0;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fff;
+            max-width: 1500px;
+        }
+
+        h1 {
+            color: #4a90e2;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .input-field {
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 80%;
+        }
+
+        button {
+            background-color: #4a90e2;
+            color: white;
+            font-size: 16px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+        .probability-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 20px;
+        }
+
+        .probability-grid input {
+            width: 50%;
+        }
+        #sumMessage.green {
+            color: green;
+        }
+
+        .histogram-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .histogram-grid canvas {
+            border: 2px solid #4a90e2;
+            border-radius: 8px;
+            width: 150px;
+            height: 150px;
+        }
+
+        #sumMessage.red {
+            color: red;
+        }
+
+        #meanVar {
+            color: purple;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <div class="container">
+            <h1>Interval Simulator</h1>
+
+            <label for="numIntervals">Number of intervals:</label> <br>
+            <input type="number" id="numIntervals" value="3" min="1" step="1" class="input-field" onchange="updateProbabilityFields()">
+            <br>
+            <input type="number" id="numGenerations" value="3" min="1" step="1" class="input-field" hidden>            
+            <br>
+            <label for="numGroups">Number of generations (m):</label>
+            <input type="number" id="numGroups" value="10" min="1" step="1" class="input-field">
+            <br>
+
+            <label for="probabilities">Interval probability:</label>
+            <div class="probability-grid" id="probabilityGrid"></div>
+
+            <div id="sumMessage"></div>
+            <div class="container">
+                <button onclick="drawHistogram()">Calculate</button>
+            </div>
+            <div class="container">
+                <canvas id="theoreticalCanvas" width="400" height="400"></canvas>
+            </div>
+
+            <div id="meanVar"></div>
+
+            <h2>Generated Histograms for Each Generation</h2>
+            <div class="histogram-grid" id="generationHistograms"></div>
+        </div>
+    </div>
+
+    <script>
+        function updateProbabilityFields() {
+            const numIntervals = document.getElementById('numIntervals').value;
+            document.getElementById('numGenerations').value = numIntervals; // Imposta numGenerations uguale a numIntervals
+
+            const probabilityGrid = document.getElementById('probabilityGrid');
+            probabilityGrid.innerHTML = ''; 
+            let totalProb = 0;
+            for (let i = 0; i < numIntervals; i++) {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `p${i}`;
+                input.value = (Math.random() * 0.3).toFixed(2); 
+                input.step = '0.01';
+                input.max = '1';
+                input.classList.add('input-field');
+                input.addEventListener('input', updateSumMessage);
+                probabilityGrid.appendChild(input);
+                totalProb += parseFloat(input.value);
+            }
+
+            normalizeProbabilities(totalProb);
+        }
+
+
+        function normalizeProbabilities(totalProb) {
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+            const scaleFactor = 1 / totalProb;
+            inputs.forEach(input => {
+                let value = parseFloat(input.value);
+                input.value = (value * scaleFactor).toFixed(2);
+            });
+            updateSumMessage();
+        }
+
+        function updateSumMessage() {
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+            const probabilities = Array.from(inputs).map(input => parseFloat(input.value) || 0);
+            const sum = probabilities.reduce((acc, val) => acc + val, 0);
+            const sumMessage = document.getElementById('sumMessage');
+            const drawButton = document.querySelector('button');
+
+            if (Math.abs(sum - 1) < 0.01) {
+                sumMessage.classList.add('green');
+                sumMessage.classList.remove('red');
+                sumMessage.textContent = `Probability sum is correct!`;
+                drawButton.style.display = 'inline-block';
+            } else {
+                sumMessage.classList.add('red');
+                sumMessage.classList.remove('green');
+                sumMessage.textContent = `Probability sum is wrong, it's: ${sum.toFixed(2)} (should be 1)`;
+                drawButton.style.display = 'none';
+            }
+        }
+
+        function generateData() {
+            const numIntervals = parseInt(document.getElementById('numIntervals').value);
+            const numGenerations = parseInt(document.getElementById('numGenerations').value);
+            const numGroups = parseInt(document.getElementById('numGroups').value);
+
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+            const probabilities = Array.from(inputs).map(input => parseFloat(input.value) || 0);
+
+            let results = [];
+            for (let i = 0; i < numGroups; i++) {
+                let generation = [];
+                for (let j = 0; j < numGenerations; j++) {
+                    const randomValue = Math.random();
+                    for (let k = 0; k < numIntervals; k++) {
+                        if (randomValue < probabilities.slice(0, k + 1).reduce((a, b) => a + b, 0)) {
+                            generation.push(k);
+                            break;
+                        }
+                    }
+                }
+                results.push(generation);
+            }
+            return results;
+        }
+
+        function drawHistogram() {
+            const data = generateData();
+            const meanVar = document.getElementById('meanVar');
+            meanVar.innerHTML = '';
+            let means = [];
+            let vars = [];
+
+            data.forEach((generation, index) => {
+                let { sum, count } = calculateMean(generation, 0);
+                let mean = sum / count; 
+                let variance = calculateVariance(generation, mean, 0);
+                means[index] = mean;
+                vars[index] = variance;
+            });
+
+            data.forEach((generation, index) => {
+                let { sum, count } = calculateMean(generation, 0);
+                let mean = sum / count; 
+                let variance = calculateVariance(generation, mean, 0);
+                const result = document.createElement('div');
+                result.textContent = `Generation ${index + 1}: Mean = ${mean.toFixed(2)}, Variance = ${variance.toFixed(2)}`;
+                meanVar.appendChild(result);
+            });
+
+            let { sum: sum_n, count: count_n } = calculateMean(means, 0);
+            let mean_n = sum_n / count_n;
+            let variance_n = calculateVariance(vars, mean_n, 0);
+
+            const result = document.createElement('div');
+            result.textContent = `Mean of means = ${mean_n.toFixed(2)}, Mean of variances = ${variance_n.toFixed(2)}`;
+            meanVar.appendChild(result);
+
+            drawTheoreticalDistribution();
+            drawHistogramsFromData(data);
+        }
+
+        function drawHistogramsFromData(data) {
+            const generationContainer = document.getElementById('generationHistograms');
+            generationContainer.innerHTML = '';  // Pulisce eventuali canvas precedenti
+
+            // Itera su ogni sotto-array in 'data' e disegna un istogramma per ogni array
+            data.forEach((generationData, index) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 300; // Adatta la larghezza
+                canvas.height = 150; // Imposta l'altezza dell'istogramma
+                generationContainer.appendChild(canvas);
+                const context = canvas.getContext('2d');
+
+                // Disegna l'istogramma per questo set di dati
+                drawSingleHistogram(context, generationData);
+            });
+        }
+
+        // Funzione per disegnare un istogramma per un singolo set di dati
+        function drawSingleHistogram(context, data) {
+            const numIntervals = data.length;
+            const barWidth = context.canvas.width / numIntervals;
+
+            // Pulisce il canvas
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height); 
+
+            // Disegna le barre per ogni intervallo di dati
+            data.forEach((height, index) => {
+                context.fillStyle = 'steelblue';  // Colore della barra
+                context.fillRect(index * barWidth, context.canvas.height - height, barWidth - 2, height); // Disegna la barra
+            });
+        }
+
+        updateProbabilityFields();
+
+        function calculateMean(values, index, sum = 0, count = 0) {
+            if (index >= values.length) {
+                return { sum, count };
+            }
+            return this.calculateMean(values, index + 1, sum + values[index], count + 1);
+        }
+
+        function calculateVariance(values, mean, index, sumOfSquares = 0) {
+            if (index >= values.length) {
+                return sumOfSquares / values.length;
+            }
+            return this.calculateVariance(values, mean, index + 1, sumOfSquares + Math.pow(values[index] - mean, 2));
+        }
+
+        function drawTheoreticalDistribution() {
+            const theoreticalCanvas = document.getElementById('theoreticalCanvas');
+            const theoreticalContext = theoreticalCanvas.getContext('2d');
+            theoreticalContext.clearRect(0, 0, theoreticalCanvas.width, theoreticalCanvas.height);
+
+            const inputs = document.querySelectorAll('#probabilityGrid .input-field');
+            const probabilities = Array.from(inputs).map(input => parseFloat(input.value) || 0);
+
+            const barWidth = theoreticalCanvas.width / probabilities.length;
+            const maxProb = Math.max(...probabilities);
+            const scale = (theoreticalCanvas.height - 20) / maxProb;
+
+            probabilities.forEach((prob, index) => {
+                const barHeight = prob * scale;
+                const x = index * barWidth;
+                const y = theoreticalCanvas.height - barHeight;
+
+                theoreticalContext.fillStyle = '#66c2a5';
+                theoreticalContext.fillRect(x, y, barWidth - 2, barHeight);
+                theoreticalContext.fillStyle = '#333';
+                theoreticalContext.fillText(prob.toFixed(2), x + barWidth / 4, y - 5);
+            });
+        }
+
+        function drawHistogramsForGenerations() {
+            const generationContainer = document.getElementById('generationHistograms');
+            generationContainer.innerHTML = '';  // Pulisce eventuali canvas precedenti
+
+            const numGenerations = parseInt(document.getElementById('numGenerations').value);
+            const numIntervals = parseInt(document.getElementById('numIntervals').value);
+
+            // Calcola i valori barHeights e le frequenze per ogni generazione
+            const allGenerationsHeights = calculateHeightsForEachGeneration(numGenerations, numIntervals);
+            const freqCountsArray = calculateFrequenciesForGenerations(allGenerationsHeights, numIntervals);
+
+            freqCountsArray.forEach((freqCounts, generationIndex) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 150;
+                canvas.height = 150;
+                generationContainer.appendChild(canvas);
+                const context = canvas.getContext('2d');
+
+                drawSingleHistogram(context, freqCounts, numIntervals);
+            });
+        }
+
+
+        function calculateFrequenciesForGenerations(allGenerationsHeights, numIntervals) {
+            return allGenerationsHeights.map(heights => {
+                const counts = new Array(numIntervals).fill(0);
+                heights.forEach(height => {
+                    if (height < numIntervals) {
+                        counts[height]++;
+                    }
+                });
+                return counts;
+            });
+        }
+
+
+        function drawSingleHistogram(context, freqCounts, numIntervals) {
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+            const barWidth = context.canvas.width / freqCounts.length;
+            const maxFreq = Math.max(...freqCounts);
+            const scale = (context.canvas.height - 20) / maxFreq;
+
+            freqCounts.forEach((count, index) => {
+                const barHeight = count * scale;
+                const x = index * barWidth;
+                const y = context.canvas.height - barHeight;
+
+                context.fillStyle = '#ff7f0e';
+                context.fillRect(x, y, barWidth - 2, barHeight);
+            });
+        }
+
+
+        function calculateHeightsForEachGeneration(numGenerations, numIntervals) {
+            let allGenerationsHeights = [];
+            for (let gen = 0; gen < numGenerations; gen++) {
+                let heights = new Array(numIntervals).fill(0);
+                for (let i = 0; i < numIntervals; i++) {
+                    const randomValue = Math.random();
+                    heights[i] = Math.floor(randomValue * numIntervals);  // Simula valori in base agli intervalli
+                }
+                allGenerationsHeights.push(heights);
+            }
+            return allGenerationsHeights;
+        }
+
+    </script>
+</body>
+</html>
